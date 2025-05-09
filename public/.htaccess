@@ -1,0 +1,122 @@
+# ============================================================
+#  .htaccess — Enterprise API (Slim)  •  PUBLIC DOCUMENT ROOT
+# ============================================================
+#
+#  ■ Purpose
+#    ─ Routes every non-static request to public/index.php;
+#    ─ Forces HTTPS and canonical host;
+#    ─ Applies strict security headers;
+#    ─ Blocks sensitive files, enables compression & caching.
+#
+#  ■ Requirements
+#    • Apache 2.4+
+#    •   mod_rewrite
+#    •   mod_headers
+#    •   mod_deflate  (for compression)
+#    •   mod_mime     (for correct content-types)
+#
+#  Place this file in  /public  (same dir as index.php)
+#  ------------------------------------------------------------
+
+
+# -----------------------------------------------------------------
+# 0. Canonical host & HTTPS redirect  (adjust YOURDOMAIN)
+# -----------------------------------------------------------------
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Redirect to HTTPS
+    RewriteCond %{HTTPS} !=on
+    RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+    # (Optional) Force single canonical host
+    #RewriteCond %{HTTP_HOST} !^api\.yourdomain\.com$ [NC]
+    #RewriteRule ^ https?://(.*)$ https://api.yourdomain.com%{REQUEST_URI} [L,R=301]
+</IfModule>
+
+
+# -----------------------------------------------------------------
+# 1. Block dotfiles, composer, env, VCS, etc.
+# -----------------------------------------------------------------
+<FilesMatch "(\.env|\.git|composer\.(json|lock)|phpunit\.xml|^.*\.dist)$">
+    Require all denied
+</FilesMatch>
+
+
+# -----------------------------------------------------------------
+# 2. Main Slim front-controller routing
+# -----------------------------------------------------------------
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Skip existing files/directories
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    # All else -> index.php (preserve query-string)
+    RewriteRule ^ index.php [L]
+</IfModule>
+
+
+# -----------------------------------------------------------------
+# 3. Security headers (minimum OWASP recommended set)
+# -----------------------------------------------------------------
+<IfModule mod_headers.c>
+    # Prevent MIME sniffing
+    Header always set X-Content-Type-Options "nosniff"
+
+    # Click-jacking protection
+    Header always set X-Frame-Options "SAMEORIGIN"
+
+    # Referrer policy
+    Header always set Referrer-Policy "same-origin"
+
+    # HSTS: 180 days preload (only if HTTPS enabled and stable)
+    Header always set Strict-Transport-Security "max-age=15552000; includeSubDomains; preload"
+
+    # Basic CSP — tweak for your needs
+    Header always set Content-Security-Policy "default-src 'self'; frame-ancestors 'none'; base-uri 'self';"
+
+    # Permissions Policy (formerly Feature-Policy)
+    Header always set Permissions-Policy "geolocation=(), microphone=()"
+
+    # CORS — allow public API, limit methods as required
+    Header always set Access-Control-Allow-Origin "*"
+    Header always set Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+    Header always set Access-Control-Allow-Headers "Content-Type, Authorization"
+
+    # Preflight cache
+    Header always set Access-Control-Max-Age "86400"
+</IfModule>
+
+
+# -----------------------------------------------------------------
+# 4. Compression (gzip/deflate)
+# -----------------------------------------------------------------
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/plain text/html text/xml text/css text/javascript application/json application/javascript application/x-javascript application/xml application/xml+rss image/svg+xml
+</IfModule>
+
+
+# -----------------------------------------------------------------
+# 5. Cache static assets aggressively (adjust paths as needed)
+# -----------------------------------------------------------------
+<IfModule mod_expires.c>
+    ExpiresActive On
+    # Images, fonts, media: cache 30d
+    ExpiresByType image/jpeg  "access plus 30 days"
+    ExpiresByType image/png   "access plus 30 days"
+    ExpiresByType image/svg+xml "access plus 30 days"
+    ExpiresByType font/woff2  "access plus 30 days"
+    # CSS & JS: cache 7d (should use hashed filenames in production)
+    ExpiresByType text/css    "access plus 7 days"
+    ExpiresByType application/javascript "access plus 7 days"
+</IfModule>
+
+
+# -----------------------------------------------------------------
+# 6. Fallback for PHP errors if mod_rewrite missing
+# -----------------------------------------------------------------
+ErrorDocument 404 /index.php
+ErrorDocument 500 /index.php

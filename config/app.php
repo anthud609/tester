@@ -1,4 +1,5 @@
 <?php
+
 // config/app.php
 use Monolog\Level;
 

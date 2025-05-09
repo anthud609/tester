@@ -1,4 +1,5 @@
 <?php
+
 // src/Middleware/Authenticate.php
 namespace App\Middleware;
 
@@ -12,7 +13,6 @@ class Authenticate implements MiddlewareInterface
 {
     // Hard-coded test token
     private string $testToken = 'test-token-123';
-
     public function __construct()
     {
         // You could inject a real auth service here later
@@ -24,13 +24,13 @@ class Authenticate implements MiddlewareInterface
         if (str_starts_with($authHeader, 'Bearer ')) {
             $token = substr($authHeader, 7);
             if ($token === $this->testToken) {
-                // Fake user payload – replace with real user lookup later
+        // Fake user payload – replace with real user lookup later
                 $user = [
                     'id'       => 1,
                     'username' => 'testuser',
                     'roles'    => ['admin'],
                 ];
-                // Attach to request for downstream handlers/controllers
+        // Attach to request for downstream handlers/controllers
                 $request = $request->withAttribute('user', $user);
                 return $handler->handle($request);
             }

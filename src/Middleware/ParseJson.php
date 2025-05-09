@@ -1,4 +1,5 @@
 <?php
+
 // src/Middleware/ParseJson.php
 namespace App\Middleware;
 

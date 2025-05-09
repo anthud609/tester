@@ -1,4 +1,5 @@
 <?php
+
 // src/Middleware/ValidateRequest.php
 namespace App\Middleware;
 

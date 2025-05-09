@@ -1,4 +1,5 @@
 <?php
+
 // src/Middleware/RateLimiter.php
 namespace App\Middleware;
 
@@ -13,7 +14,8 @@ class RateLimiter implements MiddlewareInterface
 {
     private CacheInterface $cache;
     private int $limit;
-    private int $window; // seconds
+    private int $window;
+// seconds
 
     public function __construct(CacheInterface $cache, int $limit = 100, int $window = 60)
     {
@@ -27,8 +29,7 @@ class RateLimiter implements MiddlewareInterface
         $ip  = $request->getServerParams()['REMOTE_ADDR'] ?? 'global';
         $key = "rate:{$ip}";
         $data = $this->cache->get($key, ['remaining' => $this->limit, 'reset' => time() + $this->window]);
-
-        // reset window if expired
+// reset window if expired
         if ($data['reset'] <= time()) {
             $data = ['remaining' => $this->limit, 'reset' => time() + $this->window];
         }
@@ -44,14 +45,12 @@ class RateLimiter implements MiddlewareInterface
         // consume a token
         $data['remaining']--;
         $this->cache->set($key, $data, $this->window);
-
-        // proceed
+// proceed
         $response = $handler->handle($request);
-
-        // inject rate-limit headers
+// inject rate-limit headers
         return $response
-            ->withHeader('X-RateLimit-Limit',   (string)$this->limit)
-            ->withHeader('X-RateLimit-Remaining',(string)$data['remaining'])
-            ->withHeader('X-RateLimit-Reset',   (string)$data['reset']);
+            ->withHeader('X-RateLimit-Limit', (string)$this->limit)
+            ->withHeader('X-RateLimit-Remaining', (string)$data['remaining'])
+            ->withHeader('X-RateLimit-Reset', (string)$data['reset']);
     }
 }

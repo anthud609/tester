@@ -1,104 +1,100 @@
 <?php
-namespace App;
+declare(strict_types=1);
 
-use Psr\Container\ContainerInterface;
-use Psr\Http\Message\ServerRequestInterface;
-use Psr\Http\Message\ResponseInterface;
-use Slim\Factory\AppFactory;
-use Slim\App as SlimApp;
+/**
+ * Front-controller entry point for the **Enterprise API**.
+ *
+ * This script **boots, routes, and responds** for every HTTP request that
+ * reaches the service.  It must stay tiny, predictable, and secure.
+ *
+ * ──────────────────────────────────────────────────────────────────────────
+ *  ✦  Primary Responsibilities
+ * ──────────────────────────────────────────────────────────────────────────
+ * 1. Load Composer’s autoloader and environment variables **before** doing
+ *    anything else that could rely on configuration or secret values.
+ * 2. Build the PSR-11 dependency-injection container from `config/di.php`.
+ * 3. Instantiate the {@see \App\Application} which wires up Slim,
+ *    registers global middleware, and hands back a router instance.
+ * 4. Define or import all HTTP routes (REST, RPC, GraphQL, etc.).
+ * 5. Convert PHP super-globals into a {@see \Psr\Http\Message\ServerRequestInterface}.
+ * 6. Delegate the request to Slim and obtain a
+ *    {@see \Psr\Http\Message\ResponseInterface}.
+ * 7. Emit the response to the client **without** leaking internal state.
+ *
+ * ──────────────────────────────────────────────────────────────────────────
+ *  ✦  Security / Ops Notes
+ * ──────────────────────────────────────────────────────────────────────────
+ * • NEVER output anything (echo/var_dump) before headers are sent; that would
+ *   corrupt the response and expose stack traces in production.
+ * • ALWAYS load `Dotenv` before instantiating services so secrets are present.
+ * • Pin PHP and extension versions in CI to guarantee parity with prod.
+ * • Keep this file under 150 LOC; all heavy lifting belongs in
+ *   domain-layer classes, middleware, or service providers.
+ *
+ * PHP version 8.3+
+ *
+ * @file      public/index.php
+ * @category  Enterprise-API
+ * @package   App
+ * @author    Your Name <you@example.com>
+ * @copyright Copyright © 2025 Your Company
+ * @license   MIT <https://opensource.org/licenses/MIT>
+ * @link      https://github.com/your-org/enterprise-api
+ * @version   GIT: @commit@
+ * @since     1.0.0
+ */
 
-class Application
-{
-    private SlimApp $app;
 
-    public function __construct(array $config, ContainerInterface $container)
-    {
-        // Set up Slim with your DI container
-        AppFactory::setContainer($container);
-        $app = AppFactory::create();
+require_once __DIR__ . '/../vendor/autoload.php';
 
-        // Slim built-in middleware
-        $app->addBodyParsingMiddleware();
-        $app->addRoutingMiddleware();
-        $app->addErrorMiddleware(
-            (bool) ($config['debug'] ?? false),
-            true,
-            true
-        );
+use Dotenv\Dotenv;
+use App\Application;
+use DI\ContainerBuilder;
+use Slim\Routing\RouteCollectorProxy;
+use Slim\Factory\ServerRequestCreatorFactory;
+use Psr\Http\Message\ServerRequestInterface as Request;
+use Psr\Http\Message\ResponseInterface as Response;
 
-        // Register core services from config
-        $this->configureServices($config);
+/** -------------------------------------------------------------------------
+ *  1. Environment & Configuration
+ *  ---------------------------------------------------------------------- */
+$dotenv = Dotenv::createImmutable(dirname(__DIR__));
+$dotenv->safeLoad();                            // Loads .env → $_ENV
 
-        $this->app = $app;
-    }
+$config    = require __DIR__ . '/../config/app.php';   // array<string, mixed>
+$diConfig  = __DIR__ . '/../config/di.php';            // PHP-DI definitions
 
-    /**
-     * Add PSR-15 middleware (class names) to the Slim app
-     *
-     * @param string[] $list
-     */
-    public function middleware(array $list): void
-    {
-        foreach ($list as $middlewareClass) {
-            $this->app->add(
-                $this->app->getContainer()->get($middlewareClass)
-            );
-        }
-    }
+/** -------------------------------------------------------------------------
+ *  2. Build the DI Container
+ *  ---------------------------------------------------------------------- */
+$container = (new ContainerBuilder())
+    ->addDefinitions($diConfig)
+    ->build();
 
-    /**
-     * Handle the incoming request via Slim
-     */
-    public function handle(ServerRequestInterface $request): ResponseInterface
-    {
-        return $this->app->handle($request);
-    }
+/** -------------------------------------------------------------------------
+ *  3. Bootstrap the Slim application
+ *  ---------------------------------------------------------------------- */
+$appBootstrap = new Application($config, $container);
+$router       = $appBootstrap->getRouter();    // Slim\App—route registrar
 
-    /**
-     * Emit the PSR-7 response to the client without external packages
-     */
-    public function emit(ResponseInterface $response): void
-    {
-        // Status line
-        header(sprintf(
-            'HTTP/%s %d %s',
-            $response->getProtocolVersion(),
-            $response->getStatusCode(),
-            $response->getReasonPhrase()
-        ), true, $response->getStatusCode());
+/** -------------------------------------------------------------------------
+ *  4. Route Definitions
+ *  ---------------------------------------------------------------------- */
+$router->group('/v1', function (RouteCollectorProxy $group): void {
+    $group->get('/health', function (Request $request, Response $response): Response {
+        $response->getBody()->write(json_encode(['status' => 'ok']));
+        return $response
+            ->withHeader('Content-Type', 'application/json')
+            ->withHeader('Cache-Control', 'no-store');
+    });
+    // TODO: include_route_files(__DIR__ . '/../routes/api.php');
+});
 
-        // Headers
-        foreach ($response->getHeaders() as $name => $values) {
-            foreach ($values as $value) {
-                header("{$name}: {$value}", false);
-            }
-        }
+/** -------------------------------------------------------------------------
+ *  5. Handle & Emit
+ *  ---------------------------------------------------------------------- */
+$serverRequest = ServerRequestCreatorFactory::create()
+    ->createServerRequestFromGlobals();
 
-        // Body
-        echo $response->getBody();
-    }
-
-    /**
-     * Expose the Slim App for defining routes
-     */
-    public function getRouter(): SlimApp
-    {
-        return $this->app;
-    }
-
-    /**
-     * Fetch any service from the container
-     */
-    public function get(string $id): mixed
-    {
-        return $this->app->getContainer()->get($id);
-    }
-
-    /**
-     * Register core services into the DI container
-     */
-    private function configureServices(array $config): void
-    {
-        // e.g. register DB, logger, cache, etc.
-    }
-}
+$response = $appBootstrap->handle($serverRequest);
+$appBootstrap->emit($response);

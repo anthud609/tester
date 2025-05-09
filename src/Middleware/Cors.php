@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Middleware;
 
 use Psr\Http\Message\ServerRequestInterface;
@@ -13,13 +14,8 @@ class Cors implements MiddlewareInterface
     private string $methods;
     private string $headers;
     private string $credentials;
-
-    public function __construct(
-        string $origin = '*',
-        string $methods = 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
-        string $headers = 'Content-Type, Authorization',
-        bool   $credentials = true
-    ) {
+    public function __construct(string $origin = '*', string $methods = 'GET, POST, PUT, PATCH, DELETE, OPTIONS', string $headers = 'Content-Type, Authorization', bool $credentials = true)
+    {
         $this->origin      = $origin;
         $this->methods     = $methods;
         $this->headers     = $headers;
