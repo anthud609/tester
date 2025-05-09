@@ -32,5 +32,7 @@ return function (Application $app): void {
         return $response->withHeader('Content-Type', 'text/plain');
     });
     
+    
+    
     // …add more routes here
 };

@@ -80,15 +80,14 @@ $router       = $appBootstrap->getRouter();    // Slim\App—route registrar
 /** -------------------------------------------------------------------------
  *  4. Route Definitions
  *  ---------------------------------------------------------------------- */
+/** -------------------------------------------------------------------------
+ *  4. Route Definitions
+ *  ---------------------------------------------------------------------- */
 $router->group('/v1', function (RouteCollectorProxy $group): void {
-    $group->get('/health', function (Request $request, Response $response): Response {
-        $response->getBody()->write(json_encode(['status' => 'ok']));
-        return $response
-            ->withHeader('Content-Type', 'application/json')
-            ->withHeader('Cache-Control', 'no-store');
-    });
     include_once __DIR__ . '/../routes/api.php';
 });
+
+
 
 /** -------------------------------------------------------------------------
  *  5. Handle & Emit
