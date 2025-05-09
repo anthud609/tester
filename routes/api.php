@@ -27,10 +27,18 @@ return function (Application $app): void {
     // ─────────────────────────────────────────────────────
     //  Simple ping route: GET /oot  →  "good"
     // ─────────────────────────────────────────────────────
-    $router->get('/oot', function (ServerRequestInterface $request, ResponseInterface $response): ResponseInterface {
-        $response->getBody()->write('good');
-        return $response->withHeader('Content-Type', 'text/plain');
+    $router->get('/oot', function (ServerRequestInterface $request, ResponseInterface $response) use ($logger): ResponseInterface {
+        try {
+            $logger->info('Handling /oot route');
+            $response->getBody()->write('good');
+            return $response->withHeader('Content-Type', 'text/plain');
+        } catch (Exception $e) {
+            $logger->error('Error in /oot route', ['exception' => $e->getMessage()]);
+            $response->getBody()->write('Internal Server Error');
+            return $response->withStatus(500)->withHeader('Content-Type', 'text/plain');
+        }
     });
+    
     
     
     
