@@ -27,19 +27,10 @@ return function (Application $app): void {
     // ─────────────────────────────────────────────────────
     //  Simple ping route: GET /oot  →  "good"
     // ─────────────────────────────────────────────────────
-    $router->get('/oot', function (
-        ServerRequestInterface $request,
-        ResponseInterface      $response
-    ): ResponseInterface {
+    $router->get('/oot', function (ServerRequestInterface $request, ResponseInterface $response): ResponseInterface {
         $response->getBody()->write('good');
         return $response->withHeader('Content-Type', 'text/plain');
     });
-
-    // ─────────────────────────────────────────────────────
-    //  User resource routes
-    // ─────────────────────────────────────────────────────
-    $router->get('/users',  [UserController::class, 'index']);
-    $router->post('/users', [UserController::class, 'store']);
-
+    
     // …add more routes here
 };

@@ -87,7 +87,7 @@ $router->group('/v1', function (RouteCollectorProxy $group): void {
             ->withHeader('Content-Type', 'application/json')
             ->withHeader('Cache-Control', 'no-store');
     });
-    // TODO: include_route_files(__DIR__ . '/../routes/api.php');
+    include_once __DIR__ . '/../routes/api.php';
 });
 
 /** -------------------------------------------------------------------------
